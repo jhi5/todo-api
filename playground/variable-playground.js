@@ -3,7 +3,7 @@ var person = {
 	age: 21
 };
 
-function updatePerson(obj){
+function updatePerson(obj) {
 	obj.age = 29;
 };
 
@@ -12,8 +12,9 @@ console.log(person);
 
 var grades = [1, 2];
 
-function updateArray(arr, newGrade){
+function updateArray(arr, newGrade) {
 	arr.push(newGrade);
+	debugger;
 }
 
 updateArray(grades, 3);
