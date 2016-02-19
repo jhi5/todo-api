@@ -1,5 +1,7 @@
 var bcrypt = require('bcryptjs');
 var _ = require('underscore');
+var crypto = require('crypto-js');
+var jWebToken = require('jsonwebtoken');
 var Promise = require('es6-promise').Promise;
 
 
@@ -46,6 +48,23 @@ module.exports = function(sequelize, DataTypes) {
 			toPublicJSON: function() {
 				var json = this.toJSON();
 				return _.pick(json, 'id', 'email', 'createdAt', 'updatedAt');
+			},
+			generateToken: function(type) {
+				if (!_.isString(type)) {
+					return undefined;
+				}
+
+				try {
+					var stringData = JSON.stringify({id: this.get('id'), type: type});
+					var encryptedData = crypto.AES.encrypt(stringData, 'abc12301').toString();
+					var token = jWebToken.sign({
+						token: encryptedData
+					}, "abc123");
+					return token;
+
+				} catch (e) {
+					return undefined;
+				}
 			}
 		},
 		classMethods: {
@@ -65,7 +84,7 @@ module.exports = function(sequelize, DataTypes) {
 						}
 
 						resolve(user);
-						
+
 					}, function(e) {
 						reject();
 					})
@@ -73,6 +92,6 @@ module.exports = function(sequelize, DataTypes) {
 			}
 		}
 	});
-	
+
 	return user;
 };
