@@ -55,7 +55,10 @@ module.exports = function(sequelize, DataTypes) {
 				}
 
 				try {
-					var stringData = JSON.stringify({id: this.get('id'), type: type});
+					var stringData = JSON.stringify({
+						id: this.get('id'),
+						type: type
+					});
 					var encryptedData = crypto.AES.encrypt(stringData, 'abc12301').toString();
 					var token = jWebToken.sign({
 						token: encryptedData
@@ -88,6 +91,27 @@ module.exports = function(sequelize, DataTypes) {
 					}, function(e) {
 						reject();
 					})
+				});
+			},
+			findByToken: function(token) {
+				return new Promise(function(resolve, reject) {
+					try {
+						var decodedJWT = jWebToken.verify(token, "abc123");
+						var bytes = crypto.AES.decrypt(decodedJWT.token, 'abc12301');
+						var tokenData = JSON.parse(bytes.toString(crypto.enc.Utf8));
+
+						user.findById(tokenData.id).then(function(user) {
+							if (user) {
+								resolve(user);
+							} else {
+								reject();
+							}
+						}, function(e) {
+							reject();
+						})
+					} catch (e) {
+						reject();
+					}
 				});
 			}
 		}
