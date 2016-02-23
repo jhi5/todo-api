@@ -1,9 +1,8 @@
 var bcrypt = require('bcryptjs');
 var _ = require('underscore');
-var crypto = require('crypto-js');
-var jWebToken = require('jsonwebtoken');
-var Promise = require('es6-promise').Promise;
-
+var cryptojs = require('crypto-js');
+var jwt = require('jsonwebtoken');
+var promise = require('es6-promise');
 
 module.exports = function(sequelize, DataTypes) {
 	var user = sequelize.define('user', {
@@ -15,6 +14,12 @@ module.exports = function(sequelize, DataTypes) {
 				isEmail: true
 			}
 		},
+		salt: {
+			type: DataTypes.STRING
+		},
+		password_hash: {
+			type: DataTypes.STRING
+		},
 		password: {
 			type: DataTypes.VIRTUAL,
 			allowNull: false,
@@ -23,25 +28,64 @@ module.exports = function(sequelize, DataTypes) {
 			},
 			set: function(value) {
 				var salt = bcrypt.genSaltSync(10);
-				var hashedPass = bcrypt.hashSync(value, salt);
+				var hashedPassword = bcrypt.hashSync(value, salt);
+
 				this.setDataValue('password', value);
 				this.setDataValue('salt', salt);
-				this.setDataValue('password_hash', hashedPass);
+				this.setDataValue('password_hash', hashedPassword);
 			}
-		},
-		salt: {
-			type: DataTypes.STRING
-
-		},
-		password_hash: {
-			type: DataTypes.STRING
 		}
 	}, {
 		hooks: {
 			beforeValidate: function(user, options) {
-				if (typeof user.email === "string") {
+				// user.email
+				if (typeof user.email === 'string') {
 					user.email = user.email.toLowerCase();
 				}
+			}
+		},
+		classMethods: {
+			authenticate: function(body) {
+				return new Promise(function(resolve, reject) {
+					if (typeof body.email !== 'string' || typeof body.password !== 'string') {
+						return reject();
+					}
+
+					user.findOne({
+						where: {
+							email: body.email
+						}
+					}).then(function(user) {
+						if (!user || !bcrypt.compareSync(body.password, user.get('password_hash'))) {
+							return reject();
+						}
+
+						resolve(user);
+					}, function(e) {
+						reject();
+					});
+				});
+			},
+			findByToken: function(token) {
+				return new Promise(function(resolve, reject) {
+					try {
+						var decodedJWT = jwt.verify(token, 'qwerty098');
+						var bytes = cryptojs.AES.decrypt(decodedJWT.token, 'abc123!@#!');
+						var tokenData = JSON.parse(bytes.toString(cryptojs.enc.Utf8));
+
+						user.findById(tokenData.id).then(function (user) {
+							if (user) {
+								resolve(user);
+							} else {
+								reject();
+							}
+						}, function (e) {
+							reject();
+						});
+					} catch (e) {
+						reject();
+					}
+				});
 			}
 		},
 		instanceMethods: {
@@ -59,60 +103,16 @@ module.exports = function(sequelize, DataTypes) {
 						id: this.get('id'),
 						type: type
 					});
-					var encryptedData = crypto.AES.encrypt(stringData, 'abc12301').toString();
-					var token = jWebToken.sign({
+					var encryptedData = cryptojs.AES.encrypt(stringData, 'abc123!@#!').toString();
+					var token = jwt.sign({
 						token: encryptedData
-					}, "abc123");
-					return token;
+					}, 'qwerty098');
 
+					return token;
 				} catch (e) {
+					console.error(e);
 					return undefined;
 				}
-			}
-		},
-		classMethods: {
-			authenticate: function(body) {
-				return new Promise(function(resolve, reject) {
-					if (typeof body.email !== "string" || typeof body.password !== "string") {
-						return reject();
-					}
-
-					user.findOne({
-						where: {
-							email: body.email
-						}
-					}).then(function(user) {
-						if (!user || !bcrypt.compareSync(body.password, user.get('password_hash'))) {
-							return reject();
-						}
-
-						resolve(user);
-
-					}, function(e) {
-						reject();
-					})
-				});
-			},
-			findByToken: function(token) {
-				return new Promise(function(resolve, reject) {
-					try {
-						var decodedJWT = jWebToken.verify(token, "abc123");
-						var bytes = crypto.AES.decrypt(decodedJWT.token, 'abc12301');
-						var tokenData = JSON.parse(bytes.toString(crypto.enc.Utf8));
-
-						user.findById(tokenData.id).then(function(user) {
-							if (user) {
-								resolve(user);
-							} else {
-								reject();
-							}
-						}, function(e) {
-							reject();
-						})
-					} catch (e) {
-						reject();
-					}
-				});
 			}
 		}
 	});

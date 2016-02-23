@@ -2,8 +2,9 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var _ = require('underscore');
 var db = require('./db.js');
-var bcrypt = require('bcrypt');
+var bcrypt = require('bcryptjs');
 var middleware = require('./middleware.js')(db);
+var promise = require('es6-promise');
 
 var app = express();
 var PORT = process.env.PORT || 3000;
@@ -162,6 +163,15 @@ app.post('/users/login', function (req, res) {
 		res.header('Auth', tokenInstance.get('token')).json(userInstance.toPublicJSON());
 	}).catch(function () {
 		res.status(401).send();
+	});
+});
+
+// DELETE /users/login
+app.delete('/users/login', middleware.requireAuthentication, function (req, res) {
+	req.token.destroy().then(function () {
+		res.status(204).send();
+	}).catch(function () {
+		res.status(500).send();
 	});
 });
 
