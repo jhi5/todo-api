@@ -1,7 +1,7 @@
 var Sequelize = require('sequelize');
 var sequelize = new Sequelize(undefined, undefined, undefined, {
 	"dialect": "sqlite",
-	"storage": __dirname + "/basic-slite-db.sqlite"
+	"storage": __dirname + "/basic-sqlite-db.sqlite"
 });
 
 var Todo = sequelize.define('todo', {
@@ -19,50 +19,51 @@ var Todo = sequelize.define('todo', {
 	}
 });
 
-sequelize.sync({}).then(function(){
-	console.log("Things are synched!")
-
-	Todo.findById(1).then(function(todo){
-		if(todo){
-			console.log(todo.toJSON());
-		}else{
-			console.log("Nothing found!")
-		}
-	})
+var user = sequelize.define('user', {
+	email: Sequelize.STRING
 });
 
+Todo.belongsTo(user);
+user.hasMany(Todo);
 
-/*
 sequelize.sync({
-	force: true
+	//force: true
 }).then(function() {
-	console.log("Everything is synched!");
+	console.log("Things are synched!")
 
-	Todo.create({
-			description: "walking my dog",
-			completed: false
-		}).then(function(todo) {
-			return Todo.create({
-				description: 'Clean office'
-			});
-		}).then(function() {
-			return Todo.findAll({
-				where: {
-					description: {
-						$like: "%dog%"
-					}
-				}
-			});
-		}).then(function(todos) {
-			if (todos) {
-				todos.forEach(function(todos) {
-					console.log(todos.toJSON());
-				})
-			} else {
-				console.log("No todos found!");
+	user.findById(1).then(function(user){
+		user.getTodos({
+			where: {
+				completed: !true
 			}
+		}).then(function(todos){
+			todos.forEach(function(todos){
+				console.log(todos.toJSON());
+			})
 		})
-		.catch(function(error) {
-			console.log(error);
-		});
-}); */
+	})
+
+	/* find item by owner
+	user.findById(1).then(function(user) {
+		user.getTodos().then(function(todos) {
+			todos.forEach(function(todos) {
+				console.log(todos.toJSON());
+			})
+		})
+	});
+	*/
+
+	/* create a user
+	user.create({
+		email: "email@email.com"
+	}).then(function() {
+		return Todo.create({
+			description: "Clean yard"
+		})
+	}).then(function(todo) {
+		user.findById(1).then(function(user) {
+			user.addTodo(todo);
+		})
+	});
+	*/
+});
